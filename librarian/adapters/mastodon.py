@@ -14,6 +14,8 @@ class Mastodon(Adapter):
         super().__init__(account, identifier, secret)
         self.base = (base or f"https://{account.instance}").rstrip("/")
         self._me: dict | None = None
+        # None = untried, True = the token cannot read this account (public fallback in use).
+        self._anonymous: bool | None = None
 
     def _h(self) -> dict:
         return {"Authorization": f"Bearer {self.secret}"}
@@ -26,11 +28,15 @@ class Mastodon(Adapter):
         """
         from ..http import HttpError, request_json
 
+        if self._anonymous:
+            return request_json("GET", url, None, {})
         try:
             return request_json("GET", url, None, self._h())
         except HttpError as e:
             if e.status != 403:
                 raise
+            # One 403 is enough to know the token is write-only for this account.
+            self._anonymous = True
             return request_json("GET", url, None, {})
 
     def whoami(self) -> dict:
@@ -87,20 +93,13 @@ class Mastodon(Adapter):
         return items
 
     def metrics(self, items: list[Item]) -> dict[str, Metrics]:
-        from ..http import request_json
-
-        out: dict[str, Metrics] = {}
-        for i in items:
-            try:
-                s = self._get(f"{self.base}/api/v1/statuses/{i.remote_id}")
-            except Exception:
-                continue
-            out[i.remote_uri] = Metrics(
-                likes=int(s.get("favourites_count") or 0),
-                boosts=int(s.get("reblogs_count") or 0),
-                replies=int(s.get("replies_count") or 0),
-            )
-        return out
+        """One paginated crawl instead of one request per status: the timeline already carries the
+        counts, and 130 individual GETs per night is how an instance starts rate-limiting you."""
+        wanted = {i.remote_uri for i in items}
+        if not wanted:
+            return {}
+        fresh = self.list_own(None)
+        return {i.remote_uri: i.metrics for i in fresh if i.remote_uri in wanted}
 
     def post_status(self, text: str) -> str:
         from ..http import request_json

@@ -63,6 +63,13 @@ LEMMY_REDDTHAT_COM_PASSWORD=…
 Mirrored Mastodon statuses are deleted **with** their source item: the ledger stores
 `mirrored_from`, so expiring a Bluesky post takes down the copy that was made of it.
 
+## Crawl behaviour
+
+Each account keeps a `sync:since:<platform>:<instance>` watermark, so a nightly sweep fetches only
+what is new and finishes in seconds. The first run for an account backfills back to the expiry
+horizon (`ttl_days + quantile_min_age_days`) — past that point nothing can still be alive, so paging
+deeper would only add rows destined for deletion on the same run.
+
 ## Archive
 
 `~/.local/share/social-librarian/archive/<platform>/<instance>/<YYYY-MM>/<remote_id>.json`, written

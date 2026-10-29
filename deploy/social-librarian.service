@@ -5,8 +5,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=%h/code-local/python/social-librarian
-ExecStart=%h/code-local/python/social-librarian/deploy/run.sh
+WorkingDirectory=/personal/projects/social-librarian
+ExecStart=/personal/projects/social-librarian/deploy/run.sh
 Restart=on-failure
 RestartSec=60
 Environment=PYTHONUNBUFFERED=1

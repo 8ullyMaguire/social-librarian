@@ -127,10 +127,17 @@ def run(
         rep = AccountReport(key=account.key)
         try:
             adapter = make(account, env)
-            # Past this date everything is due on the long TTL, so paging further is wasted work.
+            # Incremental crawl. The ledger already holds everything seen before, so each run only
+            # fetches what is new; the very first run backfills back to the expiry horizon, which is
+            # the point past which nothing can still be alive.
             horizon_days = account.ttl_days + account.quantile_min_age_days
             horizon = (now_dt - timedelta(days=horizon_days)).strftime("%Y-%m-%dT%H:%M:%SZ")
-            items = adapter.list_own(None, older_than=horizon)
+            sync_key = f"sync:since:{account.key}"
+            watermark = store.state_get(sync_key)
+            if watermark is None:
+                items = adapter.list_own(None, older_than=horizon)
+            else:
+                items = adapter.list_own(watermark)
         except Exception as e:  # noqa: BLE001 - one account failing must not stop the others
             rep.errors.append(f"sync failed: {e}")
             report.accounts.append(rep)
@@ -146,6 +153,11 @@ def run(
                 comments=it.metrics.comments, score=it.metrics.score, metrics_at=now,
             ))
         rep.synced = len(items)
+        if items:
+            newest_seen = max(i.created_at for i in items)
+            prev = store.state_get(f"sync:since:{account.key}") or ""
+            if newest_seen > prev:
+                store.state_set(f"sync:since:{account.key}", newest_seen)
 
         rows = [r for r in store.items(account.platform, account.instance, state="live")]
         # Engagement decays slowly after the first month; refreshing it weekly keeps a full crawl

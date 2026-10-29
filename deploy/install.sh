@@ -11,6 +11,8 @@ mkdir -p "$CONF" "$STATE/archive" "$UNITS"
 [ -f "$CONF/env" ] || { install -m 600 /dev/null "$CONF/env"; echo "fill in $CONF/env (see README)"; }
 chmod 600 "$CONF/config.toml" "$CONF/env"
 install -m 644 "$REPO/deploy/social-librarian.service" "$UNITS/"
+# The unit carries the deployment path; rewrite it if this repo lives elsewhere.
+sed -i "s#/personal/projects/social-librarian#$REPO#g" "$UNITS/social-librarian.service"
 systemctl --user daemon-reload
 systemctl --user enable --now social-librarian.service
 systemctl --user is-active social-librarian.service

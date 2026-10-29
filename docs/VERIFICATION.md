@@ -87,3 +87,25 @@ anonymously on 403.
 - The remaining 31 Postiz providers: identified, not implemented (`Error::Unsupported`).
 - A full destructive sweep: deliberately not run. `sweep --apply` waits for the operator, and the
   systemd unit ships with `SOCIAL_LIBRARIAN_SWEEP_APPLY=0`.
+
+## 7. Sweep on real data (dry run, after the incremental crawl fix)
+
+The first sweep attempt crawled the entire Bluesky archive every run and had to be killed twice.
+Fixed: each account now has a `sync:since:<platform>:<instance>` watermark, so a run fetches only
+what is new; only the very first run backfills to the expiry horizon (`ttl_days +
+quantile_min_age_days`).
+
+```
+bluesky:bsky.social          DRY  synced=0    live=1000 low=0   high=0   unclassified=1000 due=0   deleted=0
+mastodon:leftist.network     DRY  synced=0    live=131  low=101 high=26  unclassified=4    due=101 deleted=0 CAPPED
+lemmy:reddthat.com           DRY  synced=1    live=550  low=295 high=198 unclassified=57   due=452 deleted=0 CAPPED
+real 23.7s
+```
+
+Reading it: on Mastodon 101 of 131 statuses are in the expiring tier and due (21-day TTL for that
+instance), so a live sweep would remove 25 of them per run until the backlog clears. On Lemmy 452
+of 550 are due under the 180-day TTL with the 0.6 quantile. Bluesky shows `unclassified=1000`
+because every item the crawl has seen is younger than the 30-day ranking threshold — a one-time
+backfill to the horizon is running to pull the older history in.
+
+Nothing was deleted: these are dry runs.

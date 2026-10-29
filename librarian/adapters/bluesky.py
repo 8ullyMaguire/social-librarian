@@ -83,11 +83,17 @@ class Bluesky(Adapter):
                 if since and created < since:
                     continue
                 out.append(r)
-            oldest = min((r.get("value") or {}).get("createdAt", "9999") for r in records) if records else None
+            created_dates = [ (r.get("value") or {}).get("createdAt", "") for r in records ]
+            oldest = min(created_dates) if created_dates else None
+            newest = max(created_dates) if created_dates else None
             cursor = res.get("cursor")
             if not cursor or len(records) < limit or len(out) >= max_items:
                 break
             if older_than and oldest and oldest < older_than:
+                break
+            # Paging is newest-first: once a page is entirely older than the watermark there is
+            # nothing left to mirror, and continuing would crawl the whole archive every 2 minutes.
+            if since and newest and newest < since:
                 break
         return out
 
