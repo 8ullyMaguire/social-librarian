@@ -9,6 +9,49 @@ Two jobs, run on a schedule against your own accounts:
 
 Plain Python 3.11+, standard library only. No dependencies to rot.
 
+## Why this exists
+
+Mastodon now has automated post deletion built in, and `ephemetoot` — the long-standing tool for
+this — is in maintenance mode for exactly that reason. Both answer one question: *delete my posts
+older than N days.* Neither answers the ones this was written for:
+
+- **Bluesky has no expiry at all.** Nothing in the AT Protocol deletes your old records for you, and
+  most "delete old posts" tools are Mastodon- or Twitter-shaped.
+- **Age is the wrong axis.** A post nobody saw and a post that started an argument are not the same
+  thing to keep. This ranks an account's posts by engagement and expires the bottom tier early —
+  a rank, not a threshold, so an account with modest numbers still keeps its best 20 %.
+- **Per instance, not per platform.** `leftist.network` and another Mastodon instance can have
+  different norms and different retention; the policy is keyed by `platform:instance`.
+- **A mirror is a copy of a source.** When a Bluesky post expires, the Mastodon copy made from it has
+  to go too, or the archive quietly diverges. The ledger stores `mirrored_from` for that.
+- **Deletion is irreversible, so it is logged before it happens.** Text, metrics and the reason are
+  archived and fsynced first; if the archive write fails, nothing is deleted.
+
+If you only need "delete my toots after a year", use Mastodon's own setting. This is for the case
+where content lives in several places, on different schedules, and you want the reasoning recorded.
+
+## Install
+
+```bash
+pipx install .          # or: pip install .
+librarian --version
+```
+
+Then copy the example config and put your secrets in the env file:
+
+```bash
+install -d -m 700 ~/.config/social-librarian
+install -m 600 deploy/config.example.toml ~/.config/social-librarian/config.toml
+install -m 600 /dev/null ~/.config/social-librarian/env
+$EDITOR ~/.config/social-librarian/config.toml ~/.config/social-librarian/env
+librarian check         # authenticate everything, read-only
+librarian sweep         # dry run: what would go, and why
+```
+
+Nothing destructive happens without `--apply`. The systemd unit in `deploy/` runs the mirror every
+two minutes and the sweep daily, **starting in dry-run**, so the first week is evidence rather than
+deletion.
+
 ## Commands
 
 ```bash
@@ -78,9 +121,10 @@ the error is recorded. The JSON holds the text, metrics, timestamps, tier, reaso
 
 ## Transport: the `socialite` crate
 
-Writes and deletes are delegated to the Rust crate (`~/code-local/rust/socialite`) when it is
-configured, so there is one implementation of each network's API rather than one per project. Add to
-`~/.config/social-librarian/env`:
+Optional. Writes and deletes can be delegated to a separate Rust binary (`socialctl`, from the
+`socialite` crate) when one is configured, so a host running several projects has one implementation
+of each network's API rather than one per project. Without it the adapters use their own HTTP calls
+and nothing else changes. To use it, add to `~/.config/social-librarian/env`:
 
 ```
 SOCIALCTL=/personal/projects/socialite/target/release/socialctl
