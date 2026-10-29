@@ -109,3 +109,28 @@ because every item the crawl has seen is younger than the 30-day ranking thresho
 backfill to the horizon is running to pull the older history in.
 
 Nothing was deleted: these are dry runs.
+
+## 8. Full-archive sweep (after the backfill)
+
+The Bluesky backfill pulled **15,934** records (the account is automated and posts often). A dry
+sweep over the whole ledger:
+
+```
+bluesky:bsky.social   DRY  synced=1 live=15932 low=10824 high=2707 unclassified=2401 due=10824 deleted=0 CAPPED
+```
+
+with lines such as:
+
+```
+2026-04-12 bluesky:3mjdabzd65h2i low age=200d like=0 boost=0 reply=0 -> low tier, 200d >= 30d
+```
+
+Three things this exposes:
+
+1. The policy works at scale: 10,824 of 15,932 Bluesky posts are in the low tier and already past
+   their 30-day TTL.
+2. `max_deletes_per_run = 25` is far too small to clear a backlog of 10,824: at one run a day it
+   would take 433 days. The cap is a safety device, not a throughput setting; a first clearing run
+   needs it raised deliberately (e.g. 500) and watched.
+3. The 2,401 unclassified items are the last 30 days of posting, which is exactly what the
+   `quantile_min_age_days` guard is supposed to do.
