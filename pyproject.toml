@@ -1,0 +1,8 @@
+[project]
+name = "social-librarian"
+version = "0.1.0"
+description = "Mirror Bluesky to Mastodon once; expire old content everywhere, on a per-instance policy."
+requires-python = ">=3.11"
+
+[tool.setuptools]
+packages = ["librarian", "librarian.adapters"]

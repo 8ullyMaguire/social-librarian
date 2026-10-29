@@ -1,0 +1,17 @@
+[Unit]
+Description=Social Librarian — mirror Bluesky to Mastodon, expire old content
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/code-local/python/social-librarian
+ExecStart=%h/code-local/python/social-librarian/deploy/run.sh
+Restart=on-failure
+RestartSec=60
+Environment=PYTHONUNBUFFERED=1
+# Flip to 1 only after reading `librarian sweep` output: it deletes irreversibly.
+Environment=SOCIAL_LIBRARIAN_SWEEP_APPLY=0
+
+[Install]
+WantedBy=default.target

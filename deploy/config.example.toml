@@ -1,0 +1,41 @@
+# Copy to ~/.config/social-librarian/config.toml (mode 0600) and edit the accounts.
+# Secrets do NOT belong here: put them in ~/.config/social-librarian/env.
+
+[defaults]
+ttl_days = 365                 # everything expires within a year
+low_engagement_ttl_days = 30   # the bottom 80% by engagement goes after a month
+low_engagement_quantile = 0.8
+quantile_min_age_days = 30     # nothing is ranked until it has had a month to earn attention
+min_age_days = 1               # a same-day deletion bug must be impossible
+max_deletes_per_run = 25       # a sweep cannot take the whole archive in one go
+
+[defaults.engagement_weights]
+like = 1.0
+boost = 2.0
+reply = 2.0
+comment = 2.0
+score = 1.0
+
+[mirror]
+from = "bluesky:bsky.social"
+to = ["mastodon:leftist.network"]
+enabled = true
+max_chars = 500
+
+[[account]]
+platform = "bluesky"
+instance = "bsky.social"
+handle = "criticalnexus.bsky.social"
+
+[[account]]
+platform = "mastodon"
+instance = "leftist.network"
+handle = "jorvex609"
+low_engagement_ttl_days = 21
+
+[[account]]
+platform = "lemmy"
+instance = "reddthat.com"
+handle = "PumpkinDrama"
+ttl_days = 180
+low_engagement_quantile = 0.6
