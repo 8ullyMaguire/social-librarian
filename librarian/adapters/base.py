@@ -70,7 +70,7 @@ class Adapter:
     def whoami(self) -> dict:
         raise NotImplementedError
 
-    def list_own(self, since: str | None = None) -> list[Item]:
+    def list_own(self, since: str | None = None, older_than: str | None = None) -> list[Item]:
         raise NotImplementedError
 
     def metrics(self, items: list[Item]) -> dict[str, Metrics]:

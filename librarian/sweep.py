@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import archive
@@ -127,7 +127,10 @@ def run(
         rep = AccountReport(key=account.key)
         try:
             adapter = make(account, env)
-            items = adapter.list_own(None)
+            # Past this date everything is due on the long TTL, so paging further is wasted work.
+            horizon_days = account.ttl_days + account.quantile_min_age_days
+            horizon = (now_dt - timedelta(days=horizon_days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            items = adapter.list_own(None, older_than=horizon)
         except Exception as e:  # noqa: BLE001 - one account failing must not stop the others
             rep.errors.append(f"sync failed: {e}")
             report.accounts.append(rep)
@@ -145,8 +148,12 @@ def run(
         rep.synced = len(items)
 
         rows = [r for r in store.items(account.platform, account.instance, state="live")]
+        # Engagement decays slowly after the first month; refreshing it weekly keeps a full crawl
+        # from turning into thousands of API calls every night.
+        stale = [r for r in rows if r.metrics_at is None or age_days(r.metrics_at, now_dt) >= 7]
+        stale_uris = {r.remote_uri for r in stale}
         try:
-            fresh = adapter.metrics(items)
+            fresh = adapter.metrics([i for i in items if i.remote_uri in stale_uris])
         except Exception as e:  # noqa: BLE001
             rep.errors.append(f"metrics refresh failed: {e}")
             fresh = {}

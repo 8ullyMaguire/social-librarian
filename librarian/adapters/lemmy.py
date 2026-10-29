@@ -44,7 +44,7 @@ class Lemmy(Adapter):
         return {"name": person.get("name"), "id": self._person_id, "version": site.get("version")}
 
     # --- reading ---------------------------------------------------------
-    def list_own(self, since: str | None = None) -> list[Item]:
+    def list_own(self, since: str | None = None, older_than: str | None = None) -> list[Item]:
         from ..http import request_json
 
         if self._person_id is None:

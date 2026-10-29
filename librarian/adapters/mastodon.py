@@ -18,10 +18,25 @@ class Mastodon(Adapter):
     def _h(self) -> dict:
         return {"Authorization": f"Bearer {self.secret}"}
 
+    def _get(self, url: str):
+        """Read with the token, fall back to anonymous on 403.
+
+        Posting tokens often carry `write:statuses` only; the public timelines of a public account
+        are still readable without one, so a missing read scope must not disable the sweep.
+        """
+        from ..http import HttpError, request_json
+
+        try:
+            return request_json("GET", url, None, self._h())
+        except HttpError as e:
+            if e.status != 403:
+                raise
+            return request_json("GET", url, None, {})
+
     def whoami(self) -> dict:
         from ..http import request_json
 
-        me = request_json("GET", f"{self.base}/api/v1/accounts/verify_credentials", None, self._h())
+        me = self._get(f"{self.base}/api/v1/accounts/verify_credentials")
         self._me = me
         return {"acct": me.get("acct"), "id": me.get("id"), "statuses": me.get("statuses_count")}
 
@@ -29,7 +44,7 @@ class Mastodon(Adapter):
     def me(self) -> dict:
         return self._me or self.whoami() or {}
 
-    def list_own(self, since: str | None = None) -> list[Item]:
+    def list_own(self, since: str | None = None, older_than: str | None = None) -> list[Item]:
         from ..http import request_json
 
         aid = self.me.get("id")
@@ -39,12 +54,14 @@ class Mastodon(Adapter):
             url = f"{self.base}/api/v1/accounts/{aid}/statuses?limit=40&exclude_replies=false&exclude_reblogs=false"
             if max_id:
                 url += f"&max_id={max_id}"
-            page = request_json("GET", url, None, self._h())
+            page = self._get(url)
             if not page:
                 break
             for s in page:
                 created = s.get("created_at", "")
                 if since and created < since:
+                    continue
+                if older_than and created and created < older_than:
                     continue
                 kind = "repost" if s.get("reblog") else ("reply" if s.get("in_reply_to_id") else "post")
                 text = _plain(s.get("content", "")) if s.get("content") else ""
@@ -75,7 +92,7 @@ class Mastodon(Adapter):
         out: dict[str, Metrics] = {}
         for i in items:
             try:
-                s = request_json("GET", f"{self.base}/api/v1/statuses/{i.remote_id}", None, self._h())
+                s = self._get(f"{self.base}/api/v1/statuses/{i.remote_id}")
             except Exception:
                 continue
             out[i.remote_uri] = Metrics(

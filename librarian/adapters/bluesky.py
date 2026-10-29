@@ -60,7 +60,14 @@ class Bluesky(Adapter):
         return {"handle": s.get("handle"), "did": s.get("did")}
 
     # --- reading ---------------------------------------------------------
-    def _list_collection(self, collection: str, since: str | None, limit: int = 100) -> list[dict]:
+    def _list_collection(self, collection: str, since: str | None,
+                         older_than: str | None = None, limit: int = 100,
+                         max_items: int = 20000) -> list[dict]:
+        """Page the collection newest-first and stop once records are older than the horizon.
+
+        The horizon is the point past which everything is due anyway, so paging further would only
+        add rows that the sweep would classify and delete on the same run.
+        """
         out: list[dict] = []
         cursor = None
         while True:
@@ -76,14 +83,18 @@ class Bluesky(Adapter):
                 if since and created < since:
                     continue
                 out.append(r)
+            oldest = min((r.get("value") or {}).get("createdAt", "9999") for r in records) if records else None
             cursor = res.get("cursor")
-            if not cursor or len(records) < limit:
+            if not cursor or len(records) < limit or len(out) >= max_items:
+                break
+            if older_than and oldest and oldest < older_than:
                 break
         return out
 
-    def list_own(self, since: str | None = None, limit: int = 500) -> list[Item]:
+    def list_own(self, since: str | None = None, older_than: str | None = None,
+                 limit: int = 20000) -> list[Item]:
         items: list[Item] = []
-        for r in self._list_collection(POSTS, since)[:limit]:
+        for r in self._list_collection(POSTS, since, older_than)[:limit]:
             v = r.get("value") or {}
             rkey = r["uri"].rsplit("/", 1)[-1]
             text = (v.get("text") or "").strip()
@@ -104,7 +115,7 @@ class Bluesky(Adapter):
                 url=f"https://bsky.app/profile/{self.session['handle']}/post/{rkey}",
                 created_at=_iso(v.get("createdAt")),
             ))
-        reposts = self._list_collection(REPOSTS, since)[:limit]
+        reposts = self._list_collection(REPOSTS, since, older_than)[:limit]
         subjects = [r["value"]["subject"]["uri"] for r in reposts if r.get("value", {}).get("subject")]
         resolved = self._posts(subjects) if subjects else {}
         for r in reposts:
