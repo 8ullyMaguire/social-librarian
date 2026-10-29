@@ -94,6 +94,9 @@ class Lemmy(Adapter):
     def delete(self, item) -> None:
         from ..http import request_json
 
+        if self.bridge is not None:
+            self.bridge.delete(item.remote_id)
+            return
         request_json("PUT", f"{self.base}/api/v3/post",
                      {"post_id": int(item.remote_id), "deleted": True}, self._h())
 

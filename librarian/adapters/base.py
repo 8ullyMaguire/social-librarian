@@ -64,6 +64,8 @@ class Adapter:
         self.account = account
         self.identifier = identifier
         self.secret = secret
+        # Set by the registry when the Rust `socialite` transport is configured.
+        self.bridge = None
 
     def whoami(self) -> dict:
         raise NotImplementedError

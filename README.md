@@ -69,6 +69,23 @@ Mirrored Mastodon statuses are deleted **with** their source item: the ledger st
 and fsynced **before** the delete call. If the archive cannot be written, the item is not deleted and
 the error is recorded. The JSON holds the text, metrics, timestamps, tier, reason and mirror URL.
 
+## Transport: the `socialite` crate
+
+Writes and deletes are delegated to the Rust crate (`~/code-local/rust/socialite`) when it is
+configured, so there is one implementation of each network's API rather than one per project. Add to
+`~/.config/social-librarian/env`:
+
+```
+SOCIALCTL=/personal/projects/socialite/target/release/socialctl
+SOCIALCTL_ACCOUNT_MASTODON_LEFTIST_NETWORK=mastodon-leftist
+SOCIALCTL_ACCOUNT_BLUESKY_BSKY_SOCIAL=bluesky-main
+SOCIALCTL_ACCOUNT_LEMMY_REDDTHAT_COM=lemmy-reddthat
+```
+
+With those set, `post_status` and every `delete` go through `socialctl`; the ledger, the policy and
+the archive stay in Python. Without them the adapters fall back to their own HTTP calls, which is what
+lets the crate be adopted one platform at a time.
+
 ## Running it
 
 `deploy/install.sh` installs `social-librarian.service`, which mirrors every 120 s and sweeps once a

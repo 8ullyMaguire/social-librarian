@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from ..bridge import Socialctl
 from ..config import Account
 from .base import Adapter, Item, Metrics, age_days, now_iso, parse_iso
 from .bluesky import Bluesky
@@ -18,13 +19,17 @@ def make(account: Account, env: dict[str, str], **kwargs) -> Adapter:
             f"{account.key}: no credential in the env file "
             f"(expected {_secret_name(account)})"
         )
+    bridge = Socialctl.from_env(account, env)
     if account.platform == "bluesky":
-        return Bluesky(account, identifier, secret, **kwargs)
-    if account.platform == "mastodon":
-        return Mastodon(account, identifier, secret, **kwargs)
-    if account.platform == "lemmy":
-        return Lemmy(account, identifier, secret, **kwargs)
-    raise RuntimeError(f"no adapter for platform {account.platform}")
+        adapter: Adapter = Bluesky(account, identifier, secret, **kwargs)
+    elif account.platform == "mastodon":
+        adapter = Mastodon(account, identifier, secret, **kwargs)
+    elif account.platform == "lemmy":
+        adapter = Lemmy(account, identifier, secret, **kwargs)
+    else:
+        raise RuntimeError(f"no adapter for platform {account.platform}")
+    adapter.bridge = bridge
+    return adapter
 
 
 def _secret_name(account: Account) -> str:

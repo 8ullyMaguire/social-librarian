@@ -88,6 +88,10 @@ class Mastodon(Adapter):
     def post_status(self, text: str) -> str:
         from ..http import request_json
 
+        if self.bridge is not None:
+            _id, url = self.bridge.post(text)
+            return url or _id
+
         if len(text) > MAX_CHARS:
             text = text[: MAX_CHARS - 1] + "…"
         s = request_json("POST", f"{self.base}/api/v1/statuses",
@@ -96,6 +100,10 @@ class Mastodon(Adapter):
 
     def delete(self, item) -> None:
         from ..http import HttpError, request_json
+
+        if self.bridge is not None:
+            self.bridge.delete(item.remote_id)
+            return
 
         try:
             request_json("DELETE", f"{self.base}/api/v1/statuses/{item.remote_id}", None, self._h())

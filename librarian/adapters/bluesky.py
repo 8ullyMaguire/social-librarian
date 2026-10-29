@@ -163,6 +163,9 @@ class Bluesky(Adapter):
         return out
 
     def delete(self, item) -> None:
+        if self.bridge is not None:
+            self.bridge.delete(item.remote_id)
+            return
         collection = REPOSTS if item.kind == "repost" else POSTS
         self._call("com.atproto.repo.deleteRecord", {
             "repo": self.session["did"],
