@@ -1,5 +1,9 @@
 # social-librarian
 
+> **ARCHIVED 2026-11-06** — dormant, not wrong: the expiry policy it implements is not
+> settled, and nothing scheduled it. What is built and what would revive it:
+> [ARCHIVED.md](ARCHIVED.md).
+
 Two jobs, run on a schedule against your own accounts:
 
 1. **Mirror** every new Bluesky post and repost to Mastodon, exactly once.
